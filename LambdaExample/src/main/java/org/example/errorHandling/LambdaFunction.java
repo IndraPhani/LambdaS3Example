@@ -9,28 +9,36 @@ import com.amazonaws.util.StringUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.RuntimeJsonMappingException;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
-public class LambdaFunction implements RequestHandler<APIGatewayProxyRequestEvent, APIGatewayProxyResponseEvent> {
-   public  User user;
+import java.util.Collections;
+
+public class LambdaFunction implements RequestHandler<APIGatewayProxyRequestEvent, APIGatewayProxyResponseEvent>{
+
+  // private static final Gson gson = new GsonBuilder().setPrettyPrinting().create();
      final ObjectMapper objectMapper = new ObjectMapper();
     @Override
     public APIGatewayProxyResponseEvent handleRequest(APIGatewayProxyRequestEvent requestEvent, Context context) {
        final LambdaLogger logger = context.getLogger();
+        APIGatewayProxyResponseEvent responseEvent = new APIGatewayProxyResponseEvent();
        //log the entire event
-        logger.log("Log the complete API gateway request"+requestEvent.toString());
+        logger.log("Capturing the entire request "+requestEvent.toString());
         // get the user details from the post request and save that to DB
-
         //fetch the request body
         String body = requestEvent.getBody();
-        try {
-            User user = objectMapper.readValue(requestEvent.getBody(), User.class);
+        if (body == null) {
+            throw new IllegalArgumentException("Request body is missing");
+        }
+        final User user;
+       try {
+          user = objectMapper.readValue(requestEvent.getBody(), User.class);
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
-        //client check - if username and id are not null
-       if(StringUtils.isNullOrEmpty(user.getName())||user.getId()==null){
-           throw new RuntimeJsonMappingException("Details are not vaild");
-       }
-        return null;
+        responseEvent.setStatusCode(200);
+        responseEvent.setHeaders(Collections.singletonMap("Content-Type", "application/json"));
+        responseEvent.setBody(user.toString());
+       return responseEvent;
     }
 }
